@@ -6,7 +6,9 @@
 > Github Timeline is a python application developed utilizing PySide2 (Qt for python) framework 
 > It allows the user to visualise a timeline of all the Github repositories of a specified user (username)
 
-![Serch View](/img/SearchView.png) ![Details View](/img/DetailsView.png)
+| Serch View | Details View |
+| --- | --- |
+| ![Serch View](/img/SearchView.png) | ![Details View](/img/DetailsView.png) |
 
 > **Warning**: use PySide2 version 5.15.2 or > (**pip install pyside2==5.15.2**)!
 
