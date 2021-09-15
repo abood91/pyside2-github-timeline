@@ -33,6 +33,7 @@ It allows the user to visualise a timeline of all the Github repositories of a s
 
 > ```sh
 > cd pyside2-github-timeline
+> pip3.8 install -r requirements.txt
 > pip3.8 main.py
 > ```
 
