@@ -32,7 +32,7 @@ It allows the user to visualise a timeline of all the Github repositories of a s
 2. Run the app to make sure it executes:
 
 > ```sh
-> cd PySide-GithubTimeline
+> cd pyside2-github-timeline
 > pip3.8 main.py
 > ```
 
