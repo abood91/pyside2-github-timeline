@@ -1,4 +1,4 @@
-import sys, requests
+import sys
 from datetime import datetime
 
 from PySide2.QtWidgets import (QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, 
@@ -10,6 +10,9 @@ from PySide2.QtGui import (QIcon)
 
 
 from styles import Main_Style, App_Constants, find_data_file
+
+from gapi import github_api
+
 
 data = []
 
@@ -29,6 +32,7 @@ class MainUI(QMainWindow):
             Returns:
                     None
         '''
+        self.github_api = github_api()
         QMainWindow.__init__(self)
         
         self.setupUI()
@@ -154,7 +158,7 @@ class MainUI(QMainWindow):
         self.search_button.setIconSize(QSize(20,20))
         self.search_button.setText(" Search")
         self.search_button.setCheckable(False)
-        self.search_button.clicked.connect(lambda: self.make_request(self.search_text.text()))
+        self.search_button.clicked.connect(lambda: self.search_button_click())
         
         self.search_gridLayout.addWidget(self.search_button, 2, 1, Qt.AlignLeft)
 
@@ -223,6 +227,106 @@ class MainUI(QMainWindow):
         self.centralWidget.setLayout(self.main_layout)
         # Set central widget
         self.setCentralWidget(self.centralWidget)
+    
+    
+    def format_response(self, responses):
+        '''
+        Returns the a list of all the repos of the spcified user.
+
+            Parameters:
+                    self: An object of a class
+                    username (json): json object to be formated
+
+            Returns:
+                    a responses dict that containes all the needed values. (repo name, repo cretion date)
+        '''
+        
+        if responses != None and responses!=[]:
+            repo_dict = []
+
+            # First empty the details view
+            self.empty_details_content()
+
+            # Itterates throu the responce and adds items to the details view
+            try:
+
+                for item in responses:
+                    dt = datetime.strptime(item['created_at'], '%Y-%m-%dT%H:%M:%SZ')
+                    repo_dict.append({'repo_id' : item['id'], 'name' : item['name'],
+                    'date_time': dt.strftime('%Y.%m.%d %H:%M:%S'),
+                    'dt': int(dt.strftime('%Y%m%d%H%M%S')),
+                    'date' : {'year' : dt.year, 'month' : dt.month, 'day' : dt.day, 
+                    'hour' : dt.hour, 'minute' : dt.minute, 'second' : dt.second}})
+                
+
+                repo_dict.sort(key=self.getKey)
+                #print(repo_dict)
+
+                for i in range(0, len(repo_dict)):
+
+                    # initialize the counters
+
+                    y = m = 0
+
+                     # In case its the first item then add all item details
+                    if i ==0:
+                       
+                        self.add_year(repo_dict[i]['date']['year'])
+                        self.add_month(monthNames[int(repo_dict[i]['date']['month'])-1])
+                        self.add_repo(repo_dict[i]['name'], repo_dict[i]['date_time'])
+                    
+                    # In case its not the first item, year of repo creation was not added previously 
+                    # then adds all item details.
+                    elif repo_dict[i]['date']['year'] != repo_dict[i-1]['date']['year']:
+                        
+                        m =0
+                        y +=1
+                        self.add_year(repo_dict[i]['date']['year'])
+                        self.add_month(monthNames[int(repo_dict[i]['date']['month'])-1])
+                        self.add_repo(repo_dict[i]['name'], repo_dict[i]['date_time'])
+
+                    # In case its not the first item, year of repo creation was added previously 
+                    # and the month was not added previously then adds the month and item details to the details view.
+                    elif repo_dict[i]['date']['year'] == repo_dict[i-1]['date']['year'] and repo_dict[i]['date']['month'] != repo_dict[i-1]['date']['month']:
+                        
+                        m +=1
+                        self.add_month(monthNames[int(repo_dict[i]['date']['month'])-1])
+                        self.add_repo(repo_dict[i]['name'], repo_dict[i]['date_time'])
+                    
+                    # In case its not the first item, year of repo creation was added previously 
+                    # and the month was added previously then adds only the item details to the details view.
+                    elif repo_dict[i]['date']['year'] == repo_dict[i-1]['date']['year'] and repo_dict[i]['date']['month'] == repo_dict[i-1]['date']['month']:
+                        self.add_repo(repo_dict[i]['name'], repo_dict[i]['date_time'])
+                
+                # toggle the details view and remove the search view
+                self.frames_toggle()
+
+                return repo_dict
+            except Exception as exp:
+                print(exp)
+        else:
+            print("responses was empty")
+
+    def getKey(self, repo):
+        '''
+        Returns the value of a key of an object.
+
+            Parameters:
+                    self: An object of a class
+                    repo (object): The key which contains the key
+
+            Returns:
+                    Returns the value of a key of an object
+        '''
+        return repo['dt']
+
+    def search_button_click(self):
+
+        res = self.github_api.make_request(self.search_text.text())
+        self.format_response(res)
+
+
+        
 
 
     def empty_details_content(self):
@@ -371,123 +475,6 @@ class MainUI(QMainWindow):
         repo_frame_horizontal_layout.addWidget(repo_frame_content)
 
         self.details_vertical_layout.addWidget(repo_frame)
-
-
-    def make_request(self, username):
-        '''
-        Returns the a list of all the repos of the spcified user.
-
-            Parameters:
-                    self: An object of a class
-                    username (string): the username of the github user
-
-            Returns:
-                    a list of all the repost that belongs to the specified user
-        '''
-        
-        if username != "":
-            try:
-                url = 'https://api.github.com/users/'+str(username)+'/repos'
-                responses = requests.get(str(url))
-                responses = responses.json()
-                self.format_response(responses)
-                return responses
-            except Exception as exp:
-                print(exp)
-        else:
-            print("Username is empty please spcify a username")
-    
-
-    def format_response(self, responses):
-        '''
-        Returns the a list of all the repos of the spcified user.
-
-            Parameters:
-                    self: An object of a class
-                    username (json): json object to be formated
-
-            Returns:
-                    a responses dict that containes all the needed values. (repo name, repo cretion date)
-        '''
-        
-        if responses != None and responses!=[]:
-            repo_dict = []
-
-            # First empty the details view
-            self.empty_details_content()
-
-            # Itterates throu the responce and adds items to the details view
-            try:
-
-                for item in responses:
-                    dt = datetime.strptime(item['created_at'], '%Y-%m-%dT%H:%M:%SZ')
-                    repo_dict.append({'repo_id' : item['id'], 'name' : item['name'],
-                    'date_time': dt.strftime('%Y.%m.%d %H:%M:%S'),
-                    'dt': int(dt.strftime('%Y%m%d%H%M%S')),
-                    'date' : {'year' : dt.year, 'month' : dt.month, 'day' : dt.day, 
-                    'hour' : dt.hour, 'minute' : dt.minute, 'second' : dt.second}})
-                
-
-                repo_dict.sort(key=self.getKey)
-                #print(repo_dict)
-
-                for i in range(0, len(repo_dict)):
-
-                    # initialize the counters
-
-                    y = m = 0
-
-                     # In case its the first item then add all item details
-                    if i ==0:
-                       
-                        self.add_year(repo_dict[i]['date']['year'])
-                        self.add_month(monthNames[int(repo_dict[i]['date']['month'])-1])
-                        self.add_repo(repo_dict[i]['name'], repo_dict[i]['date_time'])
-                    
-                    # In case its not the first item, year of repo creation was not added previously 
-                    # then adds all item details.
-                    elif repo_dict[i]['date']['year'] != repo_dict[i-1]['date']['year']:
-                        
-                        m =0
-                        y +=1
-                        self.add_year(repo_dict[i]['date']['year'])
-                        self.add_month(monthNames[int(repo_dict[i]['date']['month'])-1])
-                        self.add_repo(repo_dict[i]['name'], repo_dict[i]['date_time'])
-
-                    # In case its not the first item, year of repo creation was added previously 
-                    # and the month was not added previously then adds the month and item details to the details view.
-                    elif repo_dict[i]['date']['year'] == repo_dict[i-1]['date']['year'] and repo_dict[i]['date']['month'] != repo_dict[i-1]['date']['month']:
-                        
-                        m +=1
-                        self.add_month(monthNames[int(repo_dict[i]['date']['month'])-1])
-                        self.add_repo(repo_dict[i]['name'], repo_dict[i]['date_time'])
-                    
-                    # In case its not the first item, year of repo creation was added previously 
-                    # and the month was added previously then adds only the item details to the details view.
-                    elif repo_dict[i]['date']['year'] == repo_dict[i-1]['date']['year'] and repo_dict[i]['date']['month'] == repo_dict[i-1]['date']['month']:
-                        self.add_repo(repo_dict[i]['name'], repo_dict[i]['date_time'])
-                
-                # toggle the details view and remove the search view
-                self.frames_toggle()
-
-                return repo_dict
-            except Exception as exp:
-                print(exp)
-        else:
-            print("responses was empty")
-
-    def getKey(self, repo):
-        '''
-        Returns the value of a key of an object.
-
-            Parameters:
-                    self: An object of a class
-                    repo (object): The key which contains the key
-
-            Returns:
-                    Returns the value of a key of an object
-        '''
-        return repo['dt']  
 
 if __name__ == "__main__":
 
